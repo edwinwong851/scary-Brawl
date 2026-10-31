@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brawler Blitz</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="gameShell">
+    <canvas id="gameCanvas" width="1280" height="720"></canvas>
+
+    <div id="hud">
+      <div class="panel">
+        <span class="label">Wave</span>
+        <span id="waveValue">1</span>
+      </div>
+      <div class="panel">
+        <span class="label">Health</span>
+        <span id="healthValue">100</span>
+      </div>
+      <div class="panel">
+        <span class="label">Enemies</span>
+        <span id="enemyValue">0</span>
+      </div>
+      <div class="panel">
+        <span class="label">Super</span>
+        <span id="superValue">0%</span>
+      </div>
+    </div>
+
+    <div id="mobileControls">
+      <div id="joystick">
+        <div id="joystickKnob"></div>
+      </div>
+
+      <div id="actionButtons">
+        <button id="attackBtn" class="action-btn">Attack</button>
+        <button id="superBtn" class="action-btn super">Super</button>
+      </div>
+    </div>
+
+    <div id="selectScreen" class="overlay visible">
+      <div class="card wide">
+        <h1>Choose Your Brawler</h1>
+
+        <div id="characterGrid" class="character-grid">
+          <button class="character-card selected" data-character="blaze">
+            <div class="avatar blaze"></div>
+            <h2>Blaze</h2>
+            <p>Fast striker</p>
+            <span>Speed +</span>
+          </button>
+
+          <button class="character-card" data-character="nova">
+            <div class="avatar nova"></div>
+            <h2>Nova</h2>
+            <p>Balanced shooter</p>
+            <span>Accuracy +</span>
+          </button>
+
+          <button class="character-card" data-character="titan">
+            <div class="avatar titan"></div>
+            <h2>Titan</h2>
+            <p>Heavy bruiser</p>
+            <span>Health +</span>
+          </button>
+        </div>
+
+        <button id="startBtn" class="primary-btn">Start Match</button>
+      </div>
+    </div>
+
+    <div id="gameOverScreen" class="overlay hidden">
+      <div class="card">
+        <h1>Battle Over</h1>
+        <p id="finalStats">You survived 0 waves.</p>
+        <button id="restartBtn">Play Again</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
