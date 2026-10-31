@@ -19,7 +19,6 @@ const superTapBtn = document.getElementById("superTapBtn");
 
 const keys = {};
 const pointer = { x: 0, y: 0, down: false };
-
 const moveStickState = { active: false, x: 0, y: 0, pointerId: null };
 const attackStickState = { active: false, x: 0, y: 0, pointerId: null };
 
@@ -78,17 +77,18 @@ const player = {
   health: 100,
   maxHealth: 100,
   attackCooldown: 0,
-  shotDelay: 0.25,
+  shotDelay: 0.22,
   facingX: 1,
   facingY: 0,
-  superCharge: 0
+  superCharge: 0,
+  superRadius: 180,
+  shotDamage: 18,
+  color: "#f97316"
 };
 
 let enemy = null;
-
 const projectiles = [];
 const particles = [];
-const pickups = [];
 
 function resizeCanvas() {
   const parent = canvas.parentElement;
@@ -185,10 +185,23 @@ function spawnEnemy() {
   };
 }
 
+function createProjectile(owner, x, y, dirX, dirY, speed, damage, color) {
+  projectiles.push({
+    owner,
+    x,
+    y,
+    vx: dirX * speed,
+    vy: dirY * speed,
+    radius: owner === "player" ? 7 : 9,
+    damage,
+    color,
+    life: 1.8
+  });
+}
+
 function resetGame() {
   projectiles.length = 0;
   particles.length = 0;
-  pickups.length = 0;
 
   player.x = mapBounds.x + 120;
   player.y = mapBounds.y + mapBounds.height / 2;
@@ -198,8 +211,13 @@ function resetGame() {
 
   spawnEnemy();
   gameState = "playing";
+
   selectScreen.classList.add("hidden");
+  selectScreen.style.display = "none";
+
   gameOverScreen.classList.add("hidden");
+  gameOverScreen.style.display = "none";
+
   updateHud();
 }
 
@@ -231,20 +249,6 @@ function useSuper() {
   }
 }
 
-function createProjectile(owner, x, y, dirX, dirY, speed, damage, color) {
-  projectiles.push({
-    owner,
-    x,
-    y,
-    vx: dirX * speed,
-    vy: dirY * speed,
-    radius: owner === "player" ? 7 : 9,
-    damage,
-    color,
-    life: 1.8
-  });
-}
-
 function updatePlayer(dt) {
   const keyboardX =
     (keys["ArrowRight"] || keys["d"] ? 1 : 0) -
@@ -271,11 +275,13 @@ function updatePlayer(dt) {
     const length = Math.hypot(aimX, aimY) || 1;
     player.facingX = aimX / length;
     player.facingY = aimY / length;
-    const pathX = player.x + player.facingX * 32;
-    const pathY = player.y + player.facingY * 32;
-    const dirX = player.facingX;
-    const dirY = player.facingY;
-    createProjectile("player", pathX, pathY, dirX, dirY, 620, player.shotDamage, "#facc15");
+
+    if (player.attackCooldown <= 0) {
+      player.attackCooldown = player.shotDelay;
+      const shotX = player.x + player.facingX * 30;
+      const shotY = player.y + player.facingY * 30;
+      createProjectile("player", shotX, shotY, player.facingX, player.facingY, 620, player.shotDamage, "#facc15");
+    }
   }
 
   if (keys[" "] || pointer.down) {
@@ -285,7 +291,10 @@ function updatePlayer(dt) {
       const dir = normalize(dx, dy);
       player.facingX = dir.x;
       player.facingY = dir.y;
-      createProjectile("player", player.x + dirX * 30, player.y + dirY * 30, dir.x, dir.y, 620, player.shotDamage, "#facc15");
+      if (player.attackCooldown <= 0) {
+        player.attackCooldown = player.shotDelay;
+        createProjectile("player", player.x + dir.x * 30, player.y + dir.y * 30, dir.x, dir.y, 620, player.shotDamage, "#facc15");
+      }
     }
   }
 
@@ -323,9 +332,7 @@ function updateProjectiles(dt) {
     shot.life -= dt;
 
     if (shot.owner === "player") {
-      const hitEnemy =
-        Math.hypot(shot.x - enemy.x, shot.y - enemy.y) <= shot.radius + enemy.radius;
-
+      const hitEnemy = Math.hypot(shot.x - enemy.x, shot.y - enemy.y) <= shot.radius + enemy.radius;
       if (hitEnemy) {
         enemy.health -= shot.damage;
         projectiles.splice(i, 1);
@@ -334,9 +341,7 @@ function updateProjectiles(dt) {
         continue;
       }
     } else {
-      const hitPlayer =
-        Math.hypot(shot.x - player.x, shot.y - player.y) <= shot.radius + player.radius;
-
+      const hitPlayer = Math.hypot(shot.x - player.x, shot.y - player.y) <= shot.radius + player.radius;
       if (hitPlayer) {
         player.health -= shot.damage;
         projectiles.splice(i, 1);
@@ -367,11 +372,9 @@ function endGame(won) {
 
   gameState = "gameover";
   gameOverScreen.classList.remove("hidden");
+  gameOverScreen.style.display = "flex";
 
-  finalStats.textContent = won
-    ? "You won the arena!"
-    : "Enemy wins this round.";
-
+  finalStats.textContent = won ? "You won the arena!" : "Enemy wins this round.";
   updateHud();
 }
 
@@ -537,9 +540,7 @@ function setupJoystick(target, knobEl, state, maxDistance = 52) {
   });
 
   target.addEventListener("pointermove", (event) => {
-    if (event.pointerId === state.pointerId) {
-      updateJoystick(event.clientX, event.clientY);
-    }
+    if (event.pointerId === state.pointerId) updateJoystick(event.clientX, event.clientY);
   });
 
   target.addEventListener("pointerup", () => {
@@ -565,10 +566,7 @@ function loop(timestamp) {
   const dt = Math.min((timestamp - lastTime) / 1000 || 0.016, 0.033);
   lastTime = timestamp;
 
-  if (gameState === "playing") {
-    update(dt);
-  }
-
+  if (gameState === "playing") update(dt);
   render();
   requestAnimationFrame(loop);
 }
