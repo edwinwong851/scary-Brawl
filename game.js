@@ -1,7 +1,6 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-const waveValue = document.getElementById("waveValue");
 const healthValue = document.getElementById("healthValue");
 const enemyValue = document.getElementById("enemyValue");
 const superValue = document.getElementById("superValue");
@@ -12,19 +11,35 @@ const gameOverScreen = document.getElementById("gameOverScreen");
 const startBtn = document.getElementById("startBtn");
 const restartBtn = document.getElementById("restartBtn");
 
-const joystick = document.getElementById("joystick");
-const knob = document.getElementById("joystickKnob");
-const attackBtn = document.getElementById("attackBtn");
-const superBtn = document.getElementById("superBtn");
+const moveStick = document.getElementById("moveStick");
+const moveKnob = document.getElementById("moveStickKnob");
+const attackStick = document.getElementById("attackStick");
+const attackKnob = document.getElementById("attackStickKnob");
+const superTapBtn = document.getElementById("superTapBtn");
 
 const keys = {};
 const pointer = { x: 0, y: 0, down: false };
-const joystickState = { active: false, x: 0, y: 0, pointerId: null };
+
+const moveStickState = { active: false, x: 0, y: 0, pointerId: null };
+const attackStickState = { active: false, x: 0, y: 0, pointerId: null };
 
 let gameState = "menu";
 let lastTime = 0;
-let score = 0;
-let wave = 1;
+
+const mapBounds = {
+  x: 60,
+  y: 60,
+  width: 1160,
+  height: 600
+};
+
+const obstacles = [
+  { x: 390, y: 150, w: 170, h: 80 },
+  { x: 700, y: 150, w: 170, h: 80 },
+  { x: 420, y: 460, w: 180, h: 80 },
+  { x: 700, y: 460, w: 180, h: 80 },
+  { x: 560, y: 255, w: 160, h: 170 }
+];
 
 const characterData = {
   blaze: {
@@ -66,12 +81,12 @@ const player = {
   shotDelay: 0.25,
   facingX: 1,
   facingY: 0,
-  superCharge: 0,
-  superMax: 100
+  superCharge: 0
 };
 
-const enemies = [];
-const bullets = [];
+let enemy = null;
+
+const projectiles = [];
 const particles = [];
 const pickups = [];
 
@@ -80,8 +95,8 @@ function resizeCanvas() {
   const rect = parent.getBoundingClientRect();
   canvas.width = Math.max(720, Math.min(window.innerWidth, 1280));
   canvas.height = Math.max(520, Math.min(window.innerHeight, 720));
-  player.x = canvas.width / 2;
-  player.y = canvas.height / 2;
+  player.x = clamp(player.x || canvas.width / 2, mapBounds.x + 30, mapBounds.x + mapBounds.width - 30);
+  player.y = clamp(player.y || canvas.height / 2, mapBounds.y + 30, mapBounds.y + mapBounds.height - 30);
   pointer.x = player.x;
   pointer.y = player.y;
 }
@@ -102,8 +117,30 @@ function normalize(x, y) {
   return { x: x / length, y: y / length };
 }
 
-function getDistance(a, b) {
-  return Math.hypot(a.x - b.x, a.y - b.y);
+function circleIntersectsRect(cx, cy, r, rect) {
+  const nearestX = clamp(cx, rect.x, rect.x + rect.w);
+  const nearestY = clamp(cy, rect.y, rect.y + rect.h);
+  const dx = cx - nearestX;
+  const dy = cy - nearestY;
+  return dx * dx + dy * dy <= r * r;
+}
+
+function isBlocked(x, y, radius) {
+  for (const obstacle of obstacles) {
+    if (circleIntersectsRect(x, y, radius, obstacle)) return true;
+  }
+  return false;
+}
+
+function moveEntity(entity, dx, dy, dt, speed) {
+  const stepX = dx * speed * dt;
+  const stepY = dy * speed * dt;
+
+  const nextX = clamp(entity.x + stepX, mapBounds.x + entity.radius, mapBounds.x + mapBounds.width - entity.radius);
+  if (!isBlocked(nextX, entity.y, entity.radius)) entity.x = nextX;
+
+  const nextY = clamp(entity.y + stepY, mapBounds.y + entity.radius, mapBounds.y + mapBounds.height - entity.radius);
+  if (!isBlocked(entity.x, nextY, entity.radius)) entity.y = nextY;
 }
 
 function createParticles(x, y, color, count = 12) {
@@ -133,137 +170,33 @@ function applyCharacter() {
 }
 
 function spawnEnemy() {
-  const edge = Math.floor(Math.random() * 4);
-  let x = 0;
-  let y = 0;
-
-  if (edge === 0) {
-    x = rand(-50, canvas.width + 50);
-    y = -50;
-  } else if (edge === 1) {
-    x = canvas.width + 50;
-    y = rand(-50, canvas.height + 50);
-  } else if (edge === 2) {
-    x = rand(-50, canvas.width + 50);
-    y = canvas.height + 50;
-  } else {
-    x = -50;
-    y = rand(-50, canvas.height + 50);
-  }
-
-  const typeRoll = Math.random();
-  let radius = 22;
-  let speed = 120;
-  let health = 38;
-  let color = "#f87171";
-
-  if (typeRoll < 0.5) {
-    radius = 20;
-    speed = 135;
-    health = 35;
-    color = "#f87171";
-  } else if (typeRoll < 0.8) {
-    radius = 24;
-    speed = 100;
-    health = 55;
-    color = "#fb7185";
-  } else {
-    radius = 30;
-    speed = 80;
-    health = 70;
-    color = "#a78bfa";
-  }
-
-  enemies.push({
-    x,
-    y,
-    radius,
-    speed,
-    health,
-    maxHealth: health,
-    color,
-    damage: 18,
-    attackCooldown: 0
-  });
-}
-
-function spawnWave() {
-  const count = 3 + wave * 2;
-  for (let i = 0; i < count; i++) {
-    spawnEnemy();
-  }
-  updateHud();
-}
-
-function spawnPickup(x, y) {
-  pickups.push({
-    x,
-    y,
-    radius: 12,
-    life: 8
-  });
-}
-
-function createPlayerShot(dirX, dirY) {
-  if (player.attackCooldown > 0) return;
-  player.attackCooldown = player.shotDelay;
-  const bulletSpeed = 600;
-
-  bullets.push({
-    x: player.x + dirX * (player.radius + 14),
-    y: player.y + dirY * (player.radius + 14),
-    vx: dirX * bulletSpeed,
-    vy: dirY * bulletSpeed,
-    radius: 8,
-    damage: player.shotDamage,
-    life: 1.2
-  });
-}
-
-function useSuper() {
-  if (player.superCharge < 100) return;
-
-  player.superCharge = 0;
-  const radius = player.superRadius;
-
-  for (let i = enemies.length - 1; i >= 0; i--) {
-    const enemy = enemies[i];
-    const dx = enemy.x - player.x;
-    const dy = enemy.y - player.y;
-    const dist = Math.hypot(dx, dy);
-
-    if (dist < radius) {
-      enemy.health -= 38;
-      enemy.x += (dx / dist) * 22;
-      enemy.y += (dy / dist) * 22;
-
-      if (enemy.health <= 0) {
-        score += 25;
-        enemies.splice(i, 1);
-        createParticles(enemy.x, enemy.y, "#facc15", 25);
-        spawnPickup(enemy.x, enemy.y);
-      }
-    }
-  }
-
-  createParticles(player.x, player.y, "#67e8f9", 35);
+  enemy = {
+    x: mapBounds.x + mapBounds.width - 120,
+    y: mapBounds.y + mapBounds.height / 2,
+    radius: 24,
+    health: 150,
+    maxHealth: 150,
+    speed: 165,
+    color: "#fb7185",
+    damage: 12,
+    fireCooldown: 0.7,
+    facingX: -1,
+    facingY: 0
+  };
 }
 
 function resetGame() {
-  enemies.length = 0;
-  bullets.length = 0;
+  projectiles.length = 0;
   particles.length = 0;
   pickups.length = 0;
-  score = 0;
-  wave = 1;
 
-  player.x = canvas.width / 2;
-  player.y = canvas.height / 2;
+  player.x = mapBounds.x + 120;
+  player.y = mapBounds.y + mapBounds.height / 2;
   player.health = player.maxHealth;
   player.superCharge = 0;
   player.attackCooldown = 0;
 
-  spawnWave();
+  spawnEnemy();
   gameState = "playing";
   selectScreen.classList.add("hidden");
   gameOverScreen.classList.add("hidden");
@@ -271,10 +204,45 @@ function resetGame() {
 }
 
 function updateHud() {
-  waveValue.textContent = wave;
   healthValue.textContent = Math.max(0, Math.ceil(player.health));
-  enemyValue.textContent = enemies.length;
+  enemyValue.textContent = enemy ? Math.max(0, enemy.health) : 0;
   superValue.textContent = `${Math.min(100, Math.round(player.superCharge))}%`;
+}
+
+function useSuper() {
+  if (player.superCharge < 100 || gameState !== "playing") return;
+  player.superCharge = 0;
+
+  const dx = enemy.x - player.x;
+  const dy = enemy.y - player.y;
+  const dist = Math.hypot(dx, dy) || 1;
+
+  if (dist < player.superRadius) {
+    enemy.health -= 50;
+    enemy.x += (dx / dist) * 18;
+    enemy.y += (dy / dist) * 18;
+  }
+
+  createParticles(player.x, player.y, "#67e8f9", 35);
+  updateHud();
+
+  if (enemy.health <= 0) {
+    endGame(true);
+  }
+}
+
+function createProjectile(owner, x, y, dirX, dirY, speed, damage, color) {
+  projectiles.push({
+    owner,
+    x,
+    y,
+    vx: dirX * speed,
+    vy: dirY * speed,
+    radius: owner === "player" ? 7 : 9,
+    damage,
+    color,
+    life: 1.8
+  });
 }
 
 function updatePlayer(dt) {
@@ -286,132 +254,101 @@ function updatePlayer(dt) {
     (keys["ArrowDown"] || keys["s"] ? 1 : 0) -
     (keys["ArrowUp"] || keys["w"] ? 1 : 0);
 
-  const moveX = keyboardX + joystickState.x;
-  const moveY = keyboardY + joystickState.y;
-
-  let dirX = 0;
-  let dirY = 0;
+  const moveX = keyboardX + moveStickState.x;
+  const moveY = keyboardY + moveStickState.y;
 
   if (moveX !== 0 || moveY !== 0) {
     const dir = normalize(moveX, moveY);
-    dirX = dir.x;
-    dirY = dir.y;
-    player.x += dir.x * player.speed * dt;
-    player.y += dir.y * player.speed * dt;
     player.facingX = dir.x;
     player.facingY = dir.y;
-  } else if (pointer.down || pointer.x !== player.x || pointer.y !== player.y) {
+    moveEntity(player, dir.x, dir.y, dt, player.speed);
+  }
+
+  const aimX = attackStickState.x;
+  const aimY = attackStickState.y;
+
+  if (Math.abs(aimX) > 0.08 || Math.abs(aimY) > 0.08) {
+    const length = Math.hypot(aimX, aimY) || 1;
+    player.facingX = aimX / length;
+    player.facingY = aimY / length;
+    const pathX = player.x + player.facingX * 32;
+    const pathY = player.y + player.facingY * 32;
+    const dirX = player.facingX;
+    const dirY = player.facingY;
+    createProjectile("player", pathX, pathY, dirX, dirY, 620, player.shotDamage, "#facc15");
+  }
+
+  if (keys[" "] || pointer.down) {
     const dx = pointer.x - player.x;
     const dy = pointer.y - player.y;
-    if (Math.hypot(dx, dy) > 0.01) {
+    if (Math.hypot(dx, dy) > 0) {
       const dir = normalize(dx, dy);
       player.facingX = dir.x;
       player.facingY = dir.y;
+      createProjectile("player", player.x + dirX * 30, player.y + dirY * 30, dir.x, dir.y, 620, player.shotDamage, "#facc15");
     }
   }
 
-  player.x = clamp(player.x, player.radius, canvas.width - player.radius);
-  player.y = clamp(player.y, player.radius, canvas.height - player.radius);
+  if (player.attackCooldown > 0) player.attackCooldown -= dt;
+  if (player.superCharge < 100) player.superCharge += dt * 12;
+}
 
-  const aimingX = pointer.x - player.x;
-  const aimingY = pointer.y - player.y;
+function updateEnemyAI(dt) {
+  if (!enemy) return;
 
-  if (keys[" "] || pointer.down || joystickState.active) {
-    const fireDirX = aimingX || (dirX || player.facingX);
-    const fireDirY = aimingY || (dirY || player.facingY);
+  const dx = player.x - enemy.x;
+  const dy = player.y - enemy.y;
+  const dist = Math.hypot(dx, dy) || 1;
 
-    if (Math.hypot(fireDirX, fireDirY) > 0) {
-      const fdX = fireDirX / Math.hypot(fireDirX, fireDirY);
-      const fdY = fireDirY / Math.hypot(fireDirX, fireDirY);
-      createPlayerShot(fdX, fdY);
-    }
+  enemy.facingX = dx / dist;
+  enemy.facingY = dy / dist;
+
+  if (dist > 120) {
+    moveEntity(enemy, enemy.facingX, enemy.facingY, dt, enemy.speed);
   }
 
-  if (player.attackCooldown > 0) {
-    player.attackCooldown -= dt;
-  }
+  enemy.fireCooldown -= dt;
 
-  if (player.superCharge < 100) {
-    player.superCharge += dt * 12;
+  if (dist < 420 && enemy.fireCooldown <= 0) {
+    enemy.fireCooldown = 1.1;
+    createProjectile("enemy", enemy.x + enemy.facingX * 30, enemy.y + enemy.facingY * 30, enemy.facingX, enemy.facingY, 420, enemy.damage, "#fb7185");
   }
 }
 
-function updateBullets(dt) {
-  for (let i = bullets.length - 1; i >= 0; i--) {
-    const bullet = bullets[i];
-    bullet.x += bullet.vx * dt;
-    bullet.y += bullet.vy * dt;
-    bullet.life -= dt;
+function updateProjectiles(dt) {
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const shot = projectiles[i];
+    shot.x += shot.vx * dt;
+    shot.y += shot.vy * dt;
+    shot.life -= dt;
 
-    for (let j = enemies.length - 1; j >= 0; j--) {
-      const enemy = enemies[j];
-      if (getDistance(bullet, enemy) <= bullet.radius + enemy.radius) {
-        enemy.health -= bullet.damage;
-        bullets.splice(i, 1);
+    if (shot.owner === "player") {
+      const hitEnemy =
+        Math.hypot(shot.x - enemy.x, shot.y - enemy.y) <= shot.radius + enemy.radius;
 
-        if (enemy.health <= 0) {
-          score += 10;
-          enemies.splice(j, 1);
-          createParticles(enemy.x, enemy.y, "#4ade80", 25);
-          spawnPickup(enemy.x, enemy.y);
-        }
+      if (hitEnemy) {
+        enemy.health -= shot.damage;
+        projectiles.splice(i, 1);
+        createParticles(shot.x, shot.y, "#facc15", 10);
+        if (enemy.health <= 0) endGame(true);
+        continue;
+      }
+    } else {
+      const hitPlayer =
+        Math.hypot(shot.x - player.x, shot.y - player.y) <= shot.radius + player.radius;
 
-        break;
+      if (hitPlayer) {
+        player.health -= shot.damage;
+        projectiles.splice(i, 1);
+        createParticles(shot.x, shot.y, "#f87171", 10);
+        if (player.health <= 0) endGame(false);
+        continue;
       }
     }
 
-    if (bullet.life <= 0 || bullet.x < -30 || bullet.x > canvas.width + 30 || bullet.y < -30 || bullet.y > canvas.height + 30) {
-      bullets.splice(i, 1);
+    if (shot.life <= 0 || shot.x < mapBounds.x - 20 || shot.x > mapBounds.x + mapBounds.width + 20 || shot.y < mapBounds.y - 20 || shot.y > mapBounds.y + mapBounds.height + 20) {
+      projectiles.splice(i, 1);
     }
-  }
-}
-
-function updateEnemies(dt) {
-  for (let i = enemies.length - 1; i >= 0; i--) {
-    const enemy = enemies[i];
-    const dx = player.x - enemy.x;
-    const dy = player.y - enemy.y;
-    const dist = Math.hypot(dx, dy);
-
-    if (dist > 0) {
-      const dir = normalize(dx, dy);
-      enemy.x += dir.x * enemy.speed * dt;
-      enemy.y += dir.y * enemy.speed * dt;
-    }
-
-    enemy.attackCooldown -= dt;
-
-    if (dist < enemy.radius + player.radius + 4) {
-      if (enemy.attackCooldown <= 0) {
-        enemy.attackCooldown = 1.1;
-        player.health -= enemy.damage;
-        createParticles(player.x, player.y, "#f87171", 12);
-      }
-    }
-  }
-}
-
-function updatePickups(dt) {
-  for (let i = pickups.length - 1; i >= 0; i--) {
-    const pickup = pickups[i];
-    pickup.life -= dt;
-
-    if (getDistance(pickup, player) <= pickup.radius + player.radius + 4) {
-      pickup.life = 0;
-      player.health = Math.min(player.maxHealth, player.health + 18);
-      createParticles(player.x, player.y, "#4ade80", 18);
-    }
-
-    if (pickup.life <= 0) {
-      pickups.splice(i, 1);
-    }
-  }
-}
-
-function updateWaveProgress() {
-  if (enemies.length === 0) {
-    wave += 1;
-    spawnWave();
   }
 }
 
@@ -421,32 +358,33 @@ function updateParticles(dt) {
     particle.x += particle.vx * dt;
     particle.y += particle.vy * dt;
     particle.life -= dt;
-
-    if (particle.life <= 0) {
-      particles.splice(i, 1);
-    }
+    if (particle.life <= 0) particles.splice(i, 1);
   }
 }
 
-function endGame() {
+function endGame(won) {
+  if (gameState !== "playing") return;
+
   gameState = "gameover";
   gameOverScreen.classList.remove("hidden");
-  finalStats.textContent = `You survived ${wave - 1} waves.`;
+
+  finalStats.textContent = won
+    ? "You won the arena!"
+    : "Enemy wins this round.";
+
+  updateHud();
 }
 
 function update(dt) {
   if (gameState !== "playing") return;
 
   updatePlayer(dt);
-  updateBullets(dt);
-  updateEnemies(dt);
-  updatePickups(dt);
-  updateWaveProgress();
+  updateEnemyAI(dt);
+  updateProjectiles(dt);
   updateParticles(dt);
 
-  if (player.health <= 0) {
-    endGame();
-  }
+  if (player.health <= 0) endGame(false);
+  if (enemy && enemy.health <= 0) endGame(true);
 
   updateHud();
 }
@@ -463,6 +401,7 @@ function drawArena() {
 
   ctx.strokeStyle = "rgba(255,255,255,0.08)";
   ctx.lineWidth = 1;
+
   for (let x = 0; x < canvas.width; x += 40) {
     ctx.beginPath();
     ctx.moveTo(x, 0);
@@ -472,9 +411,20 @@ function drawArena() {
 
   for (let y = 0; y < canvas.height; y += 40) {
     ctx.beginPath();
-    ctx.moveTo(y, 0);
+    ctx.moveTo(0, y);
     ctx.lineTo(0, y, canvas.height);
     ctx.stroke();
+  }
+
+  ctx.strokeStyle = "rgba(148,163,184,0.5)";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(mapBounds.x, mapBounds.y, mapBounds.width, mapBounds.height);
+
+  for (const obstacle of obstacles) {
+    ctx.fillStyle = "rgba(96,165,250,0.18)";
+    ctx.fillRect(obstacle.x, obstacle.y, obstacle.w, obstacle.h);
+    ctx.strokeStyle = "rgba(103,232,249,0.5)";
+    ctx.strokeRect(obstacle.x, obstacle.y, obstacle.w, obstacle.h);
   }
 }
 
@@ -498,7 +448,9 @@ function drawPlayer() {
   ctx.stroke();
 }
 
-function drawEnemy(enemy) {
+function drawEnemy() {
+  if (!enemy) return;
+
   ctx.beginPath();
   ctx.fillStyle = enemy.color;
   ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);
@@ -506,31 +458,18 @@ function drawEnemy(enemy) {
 
   ctx.beginPath();
   ctx.fillStyle = "rgba(255,255,255,0.25)";
-  ctx.rect(enemy.x - enemy.radius, enemy.y - enemy.radius - 12, enemy.radius * 2, 6);
-  ctx.fill();
+  ctx.fillRect(enemy.x - enemy.radius, enemy.y - enemy.radius - 14, enemy.radius * 2, 6);
 
   ctx.beginPath();
   ctx.fillStyle = "#22c55e";
-  ctx.fillRect(enemy.x - enemy.radius, enemy.y - enemy.radius - 12, (enemy.health / enemy.maxHealth) * enemy.radius * 2, 6);
+  ctx.fillRect(enemy.x - enemy.radius, enemy.y - enemy.radius - 14, (enemy.health / enemy.maxHealth) * enemy.radius * 2, 6);
 }
 
-function drawPickup(pickup) {
-  ctx.beginPath();
-  ctx.fillStyle = "#facc15";
-  ctx.arc(pickup.x, pickup.y, pickup.radius, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.fillStyle = "#ffffff";
-  ctx.arc(pickup.x, pickup.y, pickup.radius * 0.4, 0, Math.PI * 2);
-  ctx.fill();
-}
-
-function drawBullets() {
-  for (const bullet of bullets) {
+function drawProjectiles() {
+  for (const shot of projectiles) {
     ctx.beginPath();
-    ctx.fillStyle = "#facc15";
-    ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
+    ctx.fillStyle = shot.color;
+    ctx.arc(shot.x, shot.y, shot.radius, 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -547,25 +486,18 @@ function drawParticles() {
 function drawSuperBurst() {
   if (player.superCharge < 100) return;
 
-  const radius = player.superRadius;
   ctx.beginPath();
   ctx.strokeStyle = "rgba(103, 232, 249, 0.8)";
   ctx.lineWidth = 3;
-  ctx.arc(player.x, player.y, radius, 0, Math.PI * 2);
+  ctx.arc(player.x, player.y, player.superRadius, 0, Math.PI * 2);
   ctx.stroke();
 }
 
 function render() {
   drawArena();
-  for (const pickup of pickups) {
-    drawPickup(pickup);
-  }
-  for (const bullet of bullets) {
-    drawBullets();
-  }
-  for (const enemy of enemies) {
-    drawEnemy(enemy);
-  }
+  drawProjectiles();
+  drawParticles();
+  drawEnemy();
   drawPlayer();
   drawSuperBurst();
 
@@ -575,11 +507,9 @@ function render() {
   }
 }
 
-function setupJoystick() {
-  const maxDistance = 52;
-
+function setupJoystick(target, knobEl, state, maxDistance = 52) {
   function updateJoystick(clientX, clientY) {
-    const rect = joystick.getBoundingClientRect();
+    const rect = target.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
     const dx = clientX - centerX;
@@ -591,43 +521,43 @@ function setupJoystick() {
     const normalizedX = Math.abs(x) > 0.08 ? x / maxDistance : 0;
     const normalizedY = Math.abs(y) > 0.08 ? y / maxDistance : 0;
 
-    joystickState.x = normalizedX;
-    joystickState.y = normalizedY;
+    state.x = normalizedX;
+    state.y = normalizedY;
 
-    knob.style.left = `${50 + x * 1.2}px`;
-    knob.style.top = `${50 + y * 1.2}px`;
+    knobEl.style.left = `${50 + x * 1.2}px`;
+    knobEl.style.top = `${50 + y * 1.2}px`;
   }
 
-  joystick.addEventListener("pointerdown", (event) => {
+  target.addEventListener("pointerdown", (event) => {
     event.preventDefault();
-    joystickState.active = true;
-    joystickState.pointerId = event.pointerId;
-    joystick.setPointerCapture(event.pointerId);
+    state.active = true;
+    state.pointerId = event.pointerId;
+    target.setPointerCapture(event.pointerId);
     updateJoystick(event.clientX, event.clientY);
   });
 
-  joystick.addEventListener("pointermove", (event) => {
-    if (event.pointerId === joystickState.pointerId) {
+  target.addEventListener("pointermove", (event) => {
+    if (event.pointerId === state.pointerId) {
       updateJoystick(event.clientX, event.clientY);
     }
   });
 
-  joystick.addEventListener("pointerup", () => {
-    joystickState.active = false;
-    joystickState.pointerId = null;
-    joystickState.x = 0;
-    joystickState.y = 0;
-    knob.style.left = "50%";
-    knob.style.top = "50%";
+  target.addEventListener("pointerup", () => {
+    state.active = false;
+    state.pointerId = null;
+    state.x = 0;
+    state.y = 0;
+    knobEl.style.left = "50%";
+    knobEl.style.top = "50%";
   });
 
-  joystick.addEventListener("pointercancel", () => {
-    joystickState.active = false;
-    joystickState.pointerId = null;
-    joystickState.x = 0;
-    joystickState.y = 0;
-    knob.style.left = "50%";
-    knob.style.top = "50%";
+  target.addEventListener("pointercancel", () => {
+    state.active = false;
+    state.pointerId = null;
+    state.x = 0;
+    state.y = 0;
+    knobEl.style.left = "50%";
+    knobEl.style.top = "50%";
   });
 }
 
@@ -640,7 +570,6 @@ function loop(timestamp) {
   }
 
   render();
-
   requestAnimationFrame(loop);
 }
 
@@ -691,6 +620,7 @@ document.addEventListener("pointerdown", (event) => {
   pointer.x = event.clientX - rect.left;
   pointer.y = event.clientY - rect.top;
   pointer.down = true;
+
   if (gameState === "playing") {
     const dx = pointer.x - player.x;
     const dy = pointer.y - player.y;
@@ -713,21 +643,15 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-attackBtn.addEventListener("click", () => {
-  if (gameState === "playing") {
-    pointer.down = true;
-    pointer.x = player.x + 1000;
-    pointer.y = player.y + 1000;
-  }
-});
-
-superBtn.addEventListener("click", () => {
+superTapBtn.addEventListener("click", () => {
   if (gameState === "playing") {
     useSuper();
   }
 });
 
-setupJoystick();
+setupJoystick(moveStick, moveKnob, moveStickState, 52);
+setupJoystick(attackStick, attackKnob, attackStickState, 58);
+
 applyCharacter();
 resetGame();
 requestAnimationFrame(loop);
