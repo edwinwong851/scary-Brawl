@@ -47,7 +47,8 @@ const characterData = {
     speed: 320,
     health: 100,
     shotDamage: 18,
-    superRadius: 180
+    superDamage: 60,
+    superRadius: 0
   },
   nova: {
     name: "Nova",
@@ -55,7 +56,8 @@ const characterData = {
     speed: 345,
     health: 95,
     shotDamage: 16,
-    superRadius: 200
+    superDamage: 55,
+    superRadius: 0
   },
   titan: {
     name: "Titan",
@@ -63,7 +65,8 @@ const characterData = {
     speed: 260,
     health: 120,
     shotDamage: 22,
-    superRadius: 170
+    superDamage: 75,
+    superRadius: 0
   }
 };
 
@@ -81,7 +84,7 @@ const player = {
   facingX: 1,
   facingY: 0,
   superCharge: 0,
-  superRadius: 180,
+  superDamage: 60,
   shotDamage: 18,
   color: "#f97316"
 };
@@ -125,11 +128,19 @@ function circleIntersectsRect(cx, cy, r, rect) {
   return dx * dx + dy * dy <= r * r;
 }
 
-function isBlocked(x, y, radius) {
+function wallHit(x, y, radius) {
+  if (x - radius < mapBounds.x || x + radius > mapBounds.x + mapBounds.width || y - radius < mapBounds.y || y + radius > mapBounds.y + mapBounds.height) {
+    return true;
+  }
+
   for (const obstacle of obstacles) {
     if (circleIntersectsRect(x, y, radius, obstacle)) return true;
   }
   return false;
+}
+
+function isBlocked(x, y, radius) {
+  return wallHit(x, y, radius);
 }
 
 function moveEntity(entity, dx, dy, dt, speed) {
@@ -164,8 +175,8 @@ function applyCharacter() {
   player.speed = stats.speed;
   player.maxHealth = stats.health;
   player.health = stats.health;
-  player.superRadius = stats.superRadius;
   player.shotDamage = stats.shotDamage;
+  player.superDamage = stats.superDamage;
   player.color = stats.color;
 }
 
@@ -185,17 +196,18 @@ function spawnEnemy() {
   };
 }
 
-function createProjectile(owner, x, y, dirX, dirY, speed, damage, color) {
+function createProjectile(owner, x, y, dirX, dirY, speed, damage, color, radius = 7, life = 1.8, burst = false) {
   projectiles.push({
     owner,
     x,
     y,
     vx: dirX * speed,
     vy: dirY * speed,
-    radius: owner === "player" ? 7 : 9,
+    radius,
     damage,
     color,
-    life: 1.8
+    life,
+    burst
   });
 }
 
@@ -231,22 +243,27 @@ function useSuper() {
   if (player.superCharge < 100 || gameState !== "playing") return;
   player.superCharge = 0;
 
-  const dx = enemy.x - player.x;
-  const dy = enemy.y - player.y;
-  const dist = Math.hypot(dx, dy) || 1;
+  const dirX = player.facingX || 1;
+  const dirY = player.facingY || 0;
+  const launchX = player.x + dirX * 32;
+  const launchY = player.y + dirY * 32;
 
-  if (dist < player.superRadius) {
-    enemy.health -= 50;
-    enemy.x += (dx / dist) * 18;
-    enemy.y += (dy / dist) * 18;
-  }
+  createProjectile(
+    "player",
+    launchX,
+    launchY,
+    dirX,
+    dirY,
+    820,
+    player.superDamage,
+    "#c084fc",
+    11,
+    0.9,
+    true
+  );
 
-  createParticles(player.x, player.y, "#67e8f9", 35);
+  createParticles(player.x, player.y, "#c084fc", 18);
   updateHud();
-
-  if (enemy.health <= 0) {
-    endGame(true);
-  }
 }
 
 function updatePlayer(dt) {
@@ -331,6 +348,12 @@ function updateProjectiles(dt) {
     shot.y += shot.vy * dt;
     shot.life -= dt;
 
+    if (wallHit(shot.x, shot.y, shot.radius)) {
+      createParticles(shot.x, shot.y, shot.color, 8);
+      projectiles.splice(i, 1);
+      continue;
+    }
+
     if (shot.owner === "player") {
       const hitEnemy = Math.hypot(shot.x - enemy.x, shot.y - enemy.y) <= shot.radius + enemy.radius;
       if (hitEnemy) {
@@ -351,7 +374,7 @@ function updateProjectiles(dt) {
       }
     }
 
-    if (shot.life <= 0 || shot.x < mapBounds.x - 20 || shot.x > mapBounds.x + mapBounds.width + 20 || shot.y < mapBounds.y - 20 || shot.y > mapBounds.y + mapBounds.height + 20) {
+    if (shot.life <= 0) {
       projectiles.splice(i, 1);
     }
   }
@@ -492,7 +515,7 @@ function drawSuperBurst() {
   ctx.beginPath();
   ctx.strokeStyle = "rgba(103, 232, 249, 0.8)";
   ctx.lineWidth = 3;
-  ctx.arc(player.x, player.y, player.superRadius, 0, Math.PI * 2);
+  ctx.arc(player.x, player.y, 26, 0, Math.PI * 2);
   ctx.stroke();
 }
 
