@@ -77,9 +77,9 @@ const player = {
   speed: 280,
   health: 100,
   maxHealth: 100,
-  attackCooldown: 0,
+  attackCooldown: 2,
   shotDelay: 0.22,
-  superCooldown: 0,
+  superCooldown: 10,
   superDelay: 1.1,
   facingX: 1,
   facingY: 0,
@@ -218,8 +218,8 @@ function resetGame() {
   player.y = mapBounds.y + mapBounds.height / 2;
   player.health = player.maxHealth;
   player.superCharge = 0;
-  player.attackCooldown = 0;
-  player.superCooldown = 0;
+  player.attackCooldown = 1;
+  player.superCooldown = 1;
 
   spawnEnemy();
   gameState = "playing";
