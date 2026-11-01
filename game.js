@@ -651,5 +651,5 @@ setupJoystick(moveStick, moveKnob, moveStickState, 52);
 setupJoystick(attackStick, attackKnob, attackStickState, 58);
 
 applyCharacter();
-resetGame();
+render();
 requestAnimationFrame(loop);
