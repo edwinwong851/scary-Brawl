@@ -47,8 +47,7 @@ const characterData = {
     speed: 320,
     health: 100,
     shotDamage: 18,
-    superDamage: 60,
-    superRadius: 0
+    superDamage: 60
   },
   nova: {
     name: "Nova",
@@ -56,8 +55,7 @@ const characterData = {
     speed: 345,
     health: 95,
     shotDamage: 16,
-    superDamage: 55,
-    superRadius: 0
+    superDamage: 55
   },
   titan: {
     name: "Titan",
@@ -65,8 +63,7 @@ const characterData = {
     speed: 260,
     health: 120,
     shotDamage: 22,
-    superDamage: 75,
-    superRadius: 0
+    superDamage: 75
   }
 };
 
@@ -81,6 +78,8 @@ const player = {
   maxHealth: 100,
   attackCooldown: 0,
   shotDelay: 0.22,
+  superCooldown: 0,
+  superDelay: 1.1,
   facingX: 1,
   facingY: 0,
   superCharge: 0,
@@ -196,7 +195,7 @@ function spawnEnemy() {
   };
 }
 
-function createProjectile(owner, x, y, dirX, dirY, speed, damage, color, radius = 7, life = 1.8, burst = false) {
+function createProjectile(owner, x, y, dirX, dirY, speed, damage, color, radius = 7, life = 1.8) {
   projectiles.push({
     owner,
     x,
@@ -206,8 +205,7 @@ function createProjectile(owner, x, y, dirX, dirY, speed, damage, color, radius 
     radius,
     damage,
     color,
-    life,
-    burst
+    life
   });
 }
 
@@ -220,6 +218,7 @@ function resetGame() {
   player.health = player.maxHealth;
   player.superCharge = 0;
   player.attackCooldown = 0;
+  player.superCooldown = 0;
 
   spawnEnemy();
   gameState = "playing";
@@ -240,7 +239,10 @@ function updateHud() {
 }
 
 function useSuper() {
-  if (player.superCharge < 100 || gameState !== "playing") return;
+  if (gameState !== "playing") return;
+  if (player.superCooldown > 0 || player.superCharge < 100) return;
+
+  player.superCooldown = player.superDelay;
   player.superCharge = 0;
 
   const dirX = player.facingX || 1;
@@ -258,8 +260,7 @@ function useSuper() {
     player.superDamage,
     "#c084fc",
     11,
-    0.9,
-    true
+    0.9
   );
 
   createParticles(player.x, player.y, "#c084fc", 18);
@@ -316,6 +317,7 @@ function updatePlayer(dt) {
   }
 
   if (player.attackCooldown > 0) player.attackCooldown -= dt;
+  if (player.superCooldown > 0) player.superCooldown -= dt;
   if (player.superCharge < 100) player.superCharge += dt * 12;
 }
 
@@ -510,7 +512,7 @@ function drawParticles() {
 }
 
 function drawSuperBurst() {
-  if (player.superCharge < 100) return;
+  if (player.superCooldown > 0 || player.superCharge < 100) return;
 
   ctx.beginPath();
   ctx.strokeStyle = "rgba(103, 232, 249, 0.8)";
