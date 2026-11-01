@@ -767,6 +767,16 @@ function useSuper() {
       from: "player"
     });
   }
-
+const player = {
+  x: 640,
+  y: 360,
+  radius: 24,
+  speed: 4,
+  health: 100,
+  facing: 0,
+  shootCooldown: 0,
+  superCooldown: 0,
+  attackPower: 1
+};
   player.superCooldown = 2.2;
 }
