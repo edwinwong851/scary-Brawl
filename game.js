@@ -33,11 +33,11 @@ const mapBounds = {
 };
 
 const obstacles = [
-  { x: 390, y: 150, w: 170, h: 80 },
-  { x: 700, y: 150, w: 170, h: 80 },
-  { x: 420, y: 460, w: 180, h: 80 },
-  { x: 700, y: 460, w: 180, h: 80 },
-  { x: 560, y: 255, w: 160, h: 170 }
+  { x: 390, y: 150, w: 100, h: 40 },
+  { x: 700, y: 150, w: 110, h: 40 },
+  { x: 420, y: 460, w: 120, h: 30 },
+  { x: 700, y: 460, w: 150, h: 20 },
+  { x: 560, y: 255, w: 10, h: 130 }
 ];
 
 const characterData = {
@@ -46,24 +46,24 @@ const characterData = {
     color: "#f97316",
     speed: 320,
     health: 100,
-    shotDamage: 18,
-    superDamage: 60
+    shotDamage: 20,
+    superDamage: 50
   },
   nova: {
     name: "Nova",
     color: "#67e8f9",
-    speed: 345,
-    health: 95,
-    shotDamage: 16,
-    superDamage: 55
+    speed: 380,
+    health: 80,
+    shotDamage: 25,
+    superDamage: 75
   },
   titan: {
     name: "Titan",
     color: "#a78bfa",
-    speed: 260,
-    health: 120,
-    shotDamage: 22,
-    superDamage: 75
+    speed: 160,
+    health: 140,
+    shotDamage: 30,
+    superDamage: 85
   }
 };
 
