@@ -47,7 +47,7 @@ const characterData = {
     color: "#f97316",
     speed: 250,
     health: 100,
-    shotDamage: 10,
+    shotDamage: 15,
     superDamage: 75
   },
   nova: {
@@ -55,13 +55,13 @@ const characterData = {
     color: "#67e8f9",
     speed: 350,
     health: 80,
-    shotDamage: 5,
+    shotDamage: 10,
     superDamage: 50
   },
   titan: {
     name: "Titan",
     color: "#a78bfa",
-    speed: 175,
+    speed: 150,
     health: 150,
     shotDamage: 30,
     superDamage: 90
