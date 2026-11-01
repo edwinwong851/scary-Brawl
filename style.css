@@ -145,8 +145,8 @@ canvas {
 }
 
 .super-tap {
-  width: 112px;
-  height: 44px;
+  width: 110px;
+  height: 50px;
   border: none;
   border-radius: 12px;
   background: linear-gradient(135deg, var(--gold), #f97316);
@@ -216,8 +216,8 @@ canvas {
 }
 
 .avatar {
-  width: 80px;
-  height: 80px;
+  width: 90px;
+  height: 90px;
   border-radius: 50%;
   margin: 0 auto 12px;
   position: relative;
@@ -232,7 +232,7 @@ canvas {
   background: rgba(255,255,255,0.18);
 }
 
-.avatar.blaze { background: linear-gradient(135deg, #f97316, #fb7185); }
+.avatar.blaze { background: linear-gradient(135deg, #f87316, #fb7185); }
 .avatar.nova { background: linear-gradient(135deg, #60a5fa, #67e8f9); }
 .avatar.titan { background: linear-gradient(135deg, #a78bfa, #f9a8d4); }
 
