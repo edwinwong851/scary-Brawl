@@ -732,3 +732,41 @@ setupJoystick();
 applyCharacter();
 resetGame();
 requestAnimationFrame(loop);
+function firePlayerShot() {
+  if (player.shootCooldown > 0) return;
+
+  const shotSpeed = 9;
+  const angle = player.facing;
+
+  bullets.push({
+    x: player.x + Math.cos(angle) * 28,
+    y: player.y + Math.sin(angle) * 28,
+    vx: Math.cos(angle) * shotSpeed,
+    vy: Math.sin(angle) * shotSpeed,
+    radius: 6,
+    damage: 12,
+    from: "player"
+  });
+
+  player.shootCooldown = 1.28; // about 180ms between shots
+}
+
+function useSuper() {
+  if (player.superCooldown > 0) return;
+
+  // create a wider or stronger projectile burst
+  for (let i = -2; i <= 2; i++) {
+    const angle = player.facing + i * 0.22;
+    bullets.push({
+      x: player.x + Math.cos(angle) * 28,
+      y: player.y + Math.sin(angle) * 28,
+      vx: Math.cos(angle) * 11,
+      vy: Math.sin(angle) * 11,
+      radius: 8,
+      damage: 28,
+      from: "player"
+    });
+  }
+
+  player.superCooldown = 2.2;
+}
