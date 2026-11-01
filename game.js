@@ -45,26 +45,26 @@ const characterData = {
   blaze: {
     name: "Blaze",
     color: "#f97316",
-    speed: 320,
+    speed: 250,
     health: 100,
-    shotDamage: 20,
-    superDamage: 50
+    shotDamage: 10,
+    superDamage: 75
   },
   nova: {
     name: "Nova",
     color: "#67e8f9",
-    speed: 380,
+    speed: 350,
     health: 80,
-    shotDamage: 25,
-    superDamage: 75
+    shotDamage: 5,
+    superDamage: 50
   },
   titan: {
     name: "Titan",
     color: "#a78bfa",
-    speed: 160,
-    health: 140,
+    speed: 175,
+    health: 150,
     shotDamage: 30,
-    superDamage: 85
+    superDamage: 90
   }
 };
 
@@ -184,13 +184,13 @@ function spawnEnemy() {
   enemy = {
     x: mapBounds.x + mapBounds.width - 120,
     y: mapBounds.y + mapBounds.height / 2,
-    radius: 24,
-    health: 150,
-    maxHealth: 150,
-    speed: 165,
+    radius: 20,
+    health: 200,
+    maxHealth: 200,
+    speed: 200,
     color: "#fb7185",
-    damage: 12,
-    fireCooldown: 0.7,
+    damage: 20,
+    fireCooldown: 1.0,
     facingX: -1,
     facingY: 0
   };
