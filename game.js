@@ -16,9 +16,9 @@ const startBtn = document.getElementById('startBtn');
 const restartBtn = document.getElementById('restartBtn');
 
 const characters = {
-  Rex: { name: 'Rex', emoji: '🦾', speed: 230, fireRate: 0.24, damage: 16, health: 100 },
-  Nova: { name: 'Nova', emoji: '⚡', speed: 260, fireRate: 0.18, damage: 13, health: 88 },
-  Brute: { name: 'Brute', emoji: '🛡️', speed: 200, fireRate: 0.3, damage: 20, health: 120 },
+  Rex: { name: 'Rex', emoji: '🦾', speed: 260, fireRate: 0.25, damage: 15, health: 100 },
+  Nova: { name: 'Nova', emoji: '⚡', speed: 300, fireRate: 0.18, damage: 20, health: 88 },
+  Brute: { name: 'Brute', emoji: '🛡️', speed: 200, fireRate: 0.8, damage: 30, health: 120 },
 };
 
 const state = {
